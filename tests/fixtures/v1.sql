@@ -22,4 +22,3 @@
                     id INTEGER PRIMARY KEY, at REAL NOT NULL, action TEXT NOT NULL, detail TEXT NOT NULL
                 );
                 PRAGMA user_version=1;
-            
