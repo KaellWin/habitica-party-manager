@@ -1,6 +1,6 @@
 services:
   party-manager:
-    image: ${HPM_IMAGE:-habitica-party-manager:0.1.0}
+    image: ${HPM_IMAGE:-habitica-party-manager:0.2.0}
     restart: unless-stopped
     init: true
     user: "10001:10001"
@@ -16,10 +16,10 @@ services:
       HPM_ADMIN_TOKEN_FILE: /run/secrets/admin_token
       HPM_WEBHOOK_TOKEN_FILE: /run/secrets/webhook_token
       TZ: Europe/Paris
-      NO_PROXY: ${HPM_NO_PROXY:-habitica-server,hpm.internal,localhost,127.0.0.1}
-      no_proxy: ${HPM_NO_PROXY:-habitica-server,hpm.internal,localhost,127.0.0.1}
+      NO_PROXY: ${HPM_NO_PROXY:-habitica-server-1,hpm.internal,localhost,127.0.0.1}
+      no_proxy: ${HPM_NO_PROXY:-habitica-server-1,hpm.internal,localhost,127.0.0.1}
     ports:
-      - "${HPM_BIND_IP:-127.0.0.1}:${HPM_PORT:-8088}:8080"
+      - "${HPM_BIND_IP:-192.168.0.2}:${HPM_PORT:-8088}:8080"
     volumes:
       - ${HPM_ROOT:-/srv/habitica-party-manager}/data:/data
       - ${HPM_ROOT:-/srv/habitica-party-manager}/config:/config:ro

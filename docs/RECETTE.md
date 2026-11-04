@@ -13,8 +13,8 @@ authentification, limite de corps, secrets expurgés, verrou unique, installatio
 idempotente du webhook et sauvegarde cohérente.
 
 `scripts/check_demo.py` teste de vrais échanges HTTP entre deux conteneurs
-(FastAPI HPM et API Habitica synthétique) : simulation sans score, quatre actions
-positives → douze scores, deux doublons et négatif → aucun score supplémentaire.
+(FastAPI HPM et API Habitica synthétique) : simulation sans score, douze couples type/difficulté
+positifs → trente-six scores, deux doublons et négatif → aucun score supplémentaire.
 Ce simulateur ne reproduit pas le calcul complet d’XP, les classes, Cron ou quêtes.
 
 ## Ce qui reste à vérifier sur Ubuntu
@@ -31,7 +31,7 @@ Le journal conserve un snapshot minimal, pas l’intégralité des données pers
 | Deux clics positifs légitimes sur la même habitude | Deux empreintes, compteurs/valeurs différents, même ID de tâche |
 | Un palier attribué par Home Assistant | Même contrat que la validation manuelle ; un seul score source pour ce palier |
 | Passage en simulation puis nouvelles validations | Trois opérations `simulated`, aucun changement chez les compagnons |
-| Préparation après audit des tâches | Une habitude technique positive par compagnon ; aucune tâche existante modifiée |
+| Préparation après audit des tâches | Douze habitudes techniques positives par compagnon ; aucune tâche existante modifiée |
 | Actif sur Heal seul, une nouvelle validation | Un `succeeded`, un seul score sur Heal ; aucun score supplémentaire sur Kaell |
 | Actif sur les trois, une nouvelle validation | Trois `succeeded`, un par compte |
 | Redémarrage HPM | Mode et journal conservés ; seules opérations sûres reprennent ; `sending` devient incertain |
@@ -60,3 +60,19 @@ En cas de résultat `uncertain`, vérifier l’heure, le compagnon et l’histor
 Habitica : « Déjà attribuée » clôt sans score, « Abandonner » clôt sans score,
 « Réessayer » envoie à nouveau et peut doubler une récompense. La décision et
 sa note sont conservées. Un changement de mode n’efface jamais cette incertitude.
+
+## Recette 0.2 — types et difficultés
+
+Après migration, vérifier le retour en observation et l'absence de rejeu des
+anciens événements. Auditer et préparer les douze habitudes par compagnon ;
+l'ancienne habitude doit conserver son contenu et sa valeur. Tester en simulation
+une tâche de chaque type, aux quatre difficultés : le couple affiché doit
+correspondre au webhook. En actif, une validation donne une opération par
+compagnon et un seul score de l'habitude correspondante. Modifier une difficulté
+ne doit pas transformer un doublon du même état de score en nouvel événement.
+Les tests automatisés couvrent les douze combinaisons, une réponse de création
+perdue, l'interruption atomique de migration et la conservation des identités v0.1.
+
+Vérifier l'accès à http://192.168.0.2:8088 depuis un autre appareil du LAN,
+l'authentification par le même jeton et l'absence de tunnel SSH. Cet accès réel
+LAN reste à vérifier chez vous : le cloud utilise sa propre interface réseau.

@@ -5,6 +5,9 @@ le cloud. Elles n’altèrent ni Habitica, ni MongoDB, ni Home Assistant. Leurs
 valeurs de réseau et d’URL doivent être relevées localement. Ne transmettre
 aucune clé API, export complet d’environnement ou URL secrète dans le chat.
 
+> Pour une installation 0.1 déjà fonctionnelle : suivre d’abord
+> [la procédure de mise à jour 0.2](MISE_A_JOUR_0_2.md).
+
 ## 1. Relever uniquement les informations utiles
 
 ```bash
@@ -16,7 +19,7 @@ docker inspect NOM_SERVEUR_API --format '{{json .NetworkSettings.Networks}}'
 
 Noter le nom exact du réseau commun, le nom/alias du backend et son port interne
 (souvent 3000, à confirmer). Exemple de `base_url` :
-`http://habitica-server:3000`. Ne pas prendre le port d’un frontal qui ne sert
+`http://habitica-server-1:3000`. Ne pas prendre le port d’un frontal qui ne sert
 que les fichiers de l’interface Habitica. Ne pas copier le résultat d’un
 `docker inspect` intégral, susceptible de contenir des secrets.
 
@@ -65,7 +68,7 @@ leur présence dans les variables de stack et les inspections Docker.
 ## 3. Construire l’image sur Ubuntu
 
 ```bash
-docker build -t habitica-party-manager:0.1.0 .
+docker build -t habitica-party-manager:0.2.0 .
 docker compose --env-file .env config --quiet
 ```
 
@@ -99,17 +102,15 @@ identifiants ou le webhook Habitica.
 
 ## 5. Accéder à l’interface et enregistrer le webhook
 
-Par défaut le port écoute uniquement `127.0.0.1:8088`. Depuis votre ordinateur :
+Le port écoute sur **192.168.0.2:8088**. Depuis votre ordinateur sur le LAN,
+ouvrir **http://192.168.0.2:8088**, sans tunnel SSH. La variable Portainer
+`HPM_BIND_IP` doit être `192.168.0.2`, y compris si la stack existante contient
+encore l'ancienne valeur `127.0.0.1`.
 
-```bash
-ssh -L 8088:127.0.0.1:8088 UTILISATEUR@192.168.0.2
-```
-
-Ouvrir `http://127.0.0.1:8088`. Lire le jeton sur Ubuntu avec
-`sudo cat /srv/habitica-party-manager/secrets/admin_token`, le copier dans
-l’interface, puis fermer l’affichage. Ne pas le transmettre au cloud.
-Pour un accès LAN direct, fixer `HPM_BIND_IP=192.168.0.2` et utiliser un proxy
-HTTPS privé/une restriction LAN ; ne pas exposer publiquement ce port sur `kaell.fr`.
+Lire le jeton sur Ubuntu avec
+`sudo cat /srv/habitica-party-manager/secrets/admin_token`, le saisir dans
+l'interface puis fermer l'affichage. Ne pas le transmettre au cloud ni publier
+le port sur Internet. L'authentification existante est conservée.
 
 Dans la console Portainer du conteneur HPM (utilisateur par défaut 10001) :
 
@@ -128,7 +129,7 @@ docker exec NOM_CONTENEUR_HPM python -m hpm.cli register-webhook \
 suffixe car Habitica peut refuser un nom sans TLD en mode production. Vérifier
 sa résolution depuis le backend si les callbacks échouent. C’est un nom Docker
 interne, sans publication DNS publique. L’origine de rappel n’est pas celle
-de l’interface sur `127.0.0.1`.
+de l’interface LAN sur `192.168.0.2`.
 
 La commande ne crée que le webhook de Kaell, avec un UUID déterministe. La relancer
 ne crée pas de doublon. Si sa configuration diffère, inspecter la situation puis
@@ -143,8 +144,8 @@ URL secrète. Ne pas enregistrer un second webhook manuellement pour HPM.
 3. Auditer chaque compagnon ; lire les quotidiennes à risque et habitudes
    existantes. Examiner aussi les automatisations Home Assistant qui toucheraient
    déjà ces comptes. Corriger les conflits vous-même après décision.
-4. Cliquer « Préparer l’habitude technique » après examen. Seule l’habitude
-   technique manquante sera créée ; aucune tâche existante n’est modifiée.
+4. Cliquer « Préparer les 12 habitudes » après examen. Les destinations
+   manquantes par type/difficulté seront créées ; aucune tâche existante n’est modifiée.
 5. Passer en **Simulation**, reproduire les cas de `RECETTE.md`.
 6. Revenir en observation, désactiver Magus et War, puis passer en **Actif**
    pour un essai avec Heal. Contrôler une validation et son résultat.
@@ -201,7 +202,7 @@ restaurer le snapshot en observation selon la procédure précédente.
 Pour suspendre : mode `off`, puis arrêt du seul conteneur HPM. Pour désinstaller,
 désactiver le webhook « Habitica Party Manager » dans les paramètres Habitica
 de Kaell, retirer cette seule stack et conserver les données jusqu’à décision.
-L’habitude technique peut rester inutilisée, sans quotidienne ni pénalité liée
+Les habitudes techniques peuvent rester inutilisées, sans quotidienne ni pénalité liée
 au MVP. Ne pas supprimer l’installation Habitica ou les autres stacks.
 
 Les tâches existantes ne sont pas corrigées automatiquement. HPM ne lance pas

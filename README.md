@@ -1,13 +1,31 @@
-# Habitica Party Manager — MVP 0.1.0
+# Habitica Party Manager — Version 0.2.0
 
 Une validation positive de **Kaell** déclenche un score `up` de l’habitude
-**⚙️ Progression Kaell** sur **Heal**, **Magus** et **War**. Habitudes, quotidiennes
+correspondante au **type et à la difficulté de la tâche** sur **Heal**, **Magus** et **War**. Habitudes, quotidiennes
 et tâches à faire sont éligibles. Aucun score négatif, achat, élément de checklist
 ni pénalité n’est répercuté.
 
 Python 3.12, FastAPI, SQLite, httpx, pytest et Docker Compose. Projet indépendant
 sous licence MIT, sans accès MongoDB ni dépendance à Home Assistant. Les quatre
 identifiants sont préconfigurés ; aucune vraie clé API n’est incluse.
+
+## Nouveautés et mise à jour
+
+Chaque compagnon dispose de **12 habitudes techniques positives** : trois types
+(Habitude, Quotidienne, À faire) × quatre difficultés (0.1, 1, 1.5, 2).
+Un événement positif valide **une seule** de ces habitudes par compagnon, avec
+la même difficulté native que la tâche source. Les types sont séparés sans
+multiplicateur de récompenses. L'interface affiche le type et la difficulté.
+
+Sur votre serveur, l'interface est accessible à **http://192.168.0.2:8088** avec
+le jeton d'administration habituel, sans SSH. Le port est publié sur cette IP
+LAN précise. L'instance de démonstration ci-dessous reste sur localhost.
+
+**Installation 0.1 existante :** suivre [la mise à jour 0.2](docs/MISE_A_JOUR_0_2.md).
+La migration revient en observation, conserve la déduplication et l'historique,
+annule les anciennes opérations en attente et exige un nouvel audit/préparation.
+L'ancienne habitude reste intacte. Les fichiers TOML/secrets et le webhook
+existant sont conservés ; aucune récompense passée n'est rattrapée.
 
 ## Essai entièrement simulé
 
@@ -21,13 +39,13 @@ python3 -m venv .venv
 Interface : **http://127.0.0.1:8088**. Le jeton public de démonstration se trouve
 dans `demo/secrets/admin_token`. Ne jamais l’utiliser en production.
 
-Le scénario HTTP prépare trois comptes fictifs, teste la simulation puis quatre
-validations positives, deux doublons et une action négative. Résultat : **12
+Le scénario HTTP prépare trois comptes fictifs, teste la simulation puis les douze
+couples type/difficulté, les doublons et une action négative. Résultat : **36
 scores**, aucun sur Kaell. Pour poursuivre les essais :
 
 ```bash
 curl -X POST http://127.0.0.1:8099/simulate/habit
-curl -X POST http://127.0.0.1:8099/simulate/daily
+curl -X POST "http://127.0.0.1:8099/simulate/daily?priority=2"
 curl -X POST http://127.0.0.1:8099/simulate/todo
 curl -X POST http://127.0.0.1:8099/simulate/duplicate
 curl -X POST http://127.0.0.1:8099/simulate/negative
@@ -46,6 +64,7 @@ dans le volume `hpm-demo_demo-data`. Cette stack ne doit recevoir aucune vraie c
 - [Audit des API et des solutions existantes](docs/AUDIT_API.md).
 - [Architecture et feuille de route](docs/ARCHITECTURE.md).
 - [Recette sur votre instance](docs/RECETTE.md).
+- [Résultats de validation](docs/VERIFICATION.md).
 
 La stack cible Docker **Standalone**, une seule instance, SQLite sur disque
 local et `/srv/habitica-party-manager` pour la persistance. Pas de Swarm ni NFS.
@@ -64,7 +83,7 @@ Le mode persiste en SQLite ; `initial_mode` ne s’applique qu’à une base neu
 Changer de mode annule les opérations encore en attente. Une requête déjà
 partie peut aboutir ; les résultats incertains restent visibles.
 La création d’une habitude est une action d’installation explicite après audit,
-possible en observation mais interdite en simulation.
+possible en observation ou arrêté, interdite en simulation et en actif.
 
 L’interface permet de consulter les événements, les résultats par compagnon,
 les erreurs, la connexion et l’audit des tâches ; de changer de mode ; d’activer
@@ -74,7 +93,8 @@ Les comptes et leurs clés se configurent par fichiers puis redémarrage.
 ## Garanties et limites
 
 - Empreinte de l’état de score et contraintes uniques SQLite : un événement et
-  une opération par compagnon. Compteurs et valeurs distinguent deux scores
+  une opération par compagnon. La difficulté est figée dans la file sans changer
+  les empreintes v0.1. Compteurs et valeurs distinguent deux scores
   successifs de la même habitude, même dans la même milliseconde.
 - Réponse webhook après commit. File, historique et configuration non secrète
   persistants. Verrou de processus et `--workers 1` obligatoires.
@@ -105,7 +125,7 @@ Sans Docker, adapter les chemins du TOML et définir `HPM_CONFIG`,
 `HPM_ADMIN_TOKEN_FILE`, `HPM_WEBHOOK_TOKEN_FILE`, puis :
 
 ```bash
-.venv/bin/uvicorn hpm.app:app --host 127.0.0.1 --port 8088 --workers 1 --no-access-log
+.venv/bin/uvicorn hpm.app:app --host 192.168.0.2 --port 8088 --workers 1 --no-access-log
 ```
 
 API de gestion : `Authorization: Bearer <jeton_admin>`. Le navigateur garde le

@@ -17,9 +17,25 @@ class Store:
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         with self.connect() as db:
             version = db.execute("PRAGMA user_version").fetchone()[0]
-            if version not in {0, 1}:
+            if version not in {0, 1, 2}:
                 raise RuntimeError("Version SQLite non prise en charge ; restaurer une version compatible")
-            db.executescript("""
+        if version == 2:
+            return
+        # Une ancienne instance ne doit pas distribuer des opérations pendant la migration.
+        with open(self.path + ".lock", "a+") as migration_lock:
+            try:
+                fcntl.flock(migration_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except OSError:
+                raise RuntimeError("Arrêter l'ancienne instance HPM avant de migrer la base") from None
+            with self.connect() as db:
+                self.migrate(db)
+
+    def migrate(self, db):
+        version = db.execute("PRAGMA user_version").fetchone()[0]
+        if version == 2:
+            return
+        if version == 0:
+            schema = """
                 CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS companions(
                     name TEXT PRIMARY KEY, user_id TEXT NOT NULL, enabled INTEGER NOT NULL,
@@ -41,8 +57,28 @@ class Store:
                 CREATE TABLE IF NOT EXISTS audit_log(
                     id INTEGER PRIMARY KEY, at REAL NOT NULL, action TEXT NOT NULL, detail TEXT NOT NULL
                 );
-                PRAGMA user_version=1;
-            """)
+            """
+            for statement in schema.split(";"):
+                if statement.strip():
+                    db.execute(statement)
+        db.execute("""CREATE TABLE reward_habits(
+            companion TEXT NOT NULL, user_id TEXT NOT NULL, reward_key TEXT NOT NULL,
+            task_id TEXT NOT NULL, PRIMARY KEY(companion,reward_key), UNIQUE(user_id,task_id)
+        )""")
+        db.execute("ALTER TABLE operations ADD COLUMN reward_key TEXT")
+        db.execute("ALTER TABLE operations ADD COLUMN source_type TEXT")
+        db.execute("ALTER TABLE operations ADD COLUMN source_priority REAL")
+        if version == 1:
+            self.set_in(db, "mode", "observe")
+            self.set_in(db, "live_since", time.time())
+            db.execute("UPDATE companions SET prepared=0,audit_json=NULL")
+            db.execute(
+                "UPDATE operations SET status='cancelled',error='reward_policy_upgrade',updated_at=? "
+                "WHERE status IN ('queued','retry')",
+                (time.time(),),
+            )
+            self.audit_in(db, "schema_upgraded", {"from": 1, "to": 2, "mode": "observe"})
+        db.execute("PRAGMA user_version=2")
 
     @contextmanager
     def connect(self):

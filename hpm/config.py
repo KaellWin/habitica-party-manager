@@ -25,7 +25,7 @@ class Account(BaseModel):
     user_id: str
     token_file: str
     enabled: bool = True
-    task_id: str | None = None
+    task_id: str | None = None  # Ancienne habitude v0.1, conservée mais plus utilisée pour les scores.
 
     @field_validator("name")
     @classmethod
@@ -62,7 +62,9 @@ class Settings(BaseModel):
     companions: list[Account]
     technical_alias: str = "hpm-progression-kaell"
     technical_title: str = "⚙️ Progression Kaell"
-    habit_priority: float = Field(default=1, ge=0.1, le=2)
+    habit_priority: float = Field(
+        default=1, ge=0.1, le=2
+    )  # Compatibilité TOML v0.1 ; routage par priorité source.
     habit_reset: Literal["daily", "weekly", "monthly"] = "daily"
     request_timeout: float = Field(default=10, ge=1, le=60)
     worker_interval: float = Field(default=0.5, ge=0.1, le=60)

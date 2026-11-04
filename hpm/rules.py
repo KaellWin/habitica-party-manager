@@ -10,6 +10,8 @@ import math
 from dataclasses import dataclass
 from datetime import datetime
 
+from .rewards import reward_for
+
 
 def canonical(value) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
@@ -33,6 +35,7 @@ class Decision:
     reason: str
     snapshot: dict
     occurred_at: float | None = None
+    reward_key: str | None = None
 
 
 def classify(payload: dict, master_id: str) -> Decision:
@@ -57,6 +60,10 @@ def classify(payload: dict, master_id: str) -> Decision:
     }
     # Le titre ne participe pas à la déduplication et n'est pas nécessaire au journal.
     key = digest(snapshot)
+    # Garder exactement l'identité v0.1 pour reconnaître aussi les livraisons anciennes.
+    # La difficulté est une donnée de routage figée, pas un nouvel identifiant d'événement.
+    priority = task.get("priority")
+    snapshot["task"]["priority"] = priority if finite_number(priority) else None
 
     def result(reason, eligible=False, occurred=None):
         return Decision(key, eligible, reason, snapshot, occurred)
@@ -73,6 +80,9 @@ def classify(payload: dict, master_id: str) -> Decision:
     delta = payload.get("delta")
     if not finite_number(delta) or delta <= 0:
         return result("no_positive_delta")
+    reward = reward_for(kind, priority) if finite_number(priority) else None
+    if reward is None:
+        return result("invalid_source_priority")
     if not isinstance(task.get("_id") or task.get("id"), str):
         return result("missing_task_id")
     if not finite_number(task.get("value")):
@@ -94,4 +104,4 @@ def classify(payload: dict, master_id: str) -> Decision:
             occurred = date.timestamp()
         except (KeyError, ValueError, TypeError, AttributeError, OverflowError):
             return result("missing_score_time")
-    return result("positive_score", True, occurred)
+    return Decision(key, True, "positive_score", snapshot, occurred, reward.key)

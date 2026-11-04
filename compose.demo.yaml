@@ -1,7 +1,7 @@
 # Environnement isolé : aucune connexion à votre véritable instance Habitica.
 services:
   party-manager:
-    image: habitica-party-manager:0.1.0
+    image: habitica-party-manager:0.2.0
     build: .
     user: "10001:10001"
     read_only: true
@@ -18,7 +18,7 @@ services:
       - ./demo/secrets:/run/secrets:ro
     tmpfs: [/tmp]
   habitica-mock:
-    image: habitica-party-manager:0.1.0
+    image: habitica-party-manager:0.2.0
     command: [uvicorn, hpm.simulator:app, --host, 0.0.0.0, --port, "3000", --no-access-log]
     read_only: true
     cap_drop: [ALL]

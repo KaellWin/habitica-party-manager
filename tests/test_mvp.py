@@ -177,7 +177,7 @@ def test_http_401_is_terminal_and_does_not_block_other_accounts(live, hook, fake
 
 
 def test_technical_task_became_negative_capable(live, hook, fake):
-    next(iter(fake.tasks[IDS["Heal"]].values()))["down"] = True
+    next(t for t in fake.tasks[IDS["Heal"]].values() if t["alias"].endswith("-habit-easy"))["down"] = True
     live.post(hook, json=scored_payload())
     drain(live)
     assert len(fake.scores) == 2

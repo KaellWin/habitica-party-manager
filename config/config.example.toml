@@ -1,11 +1,11 @@
 # Copier dans /srv/habitica-party-manager/config/config.toml.
 # Renseigner l'origine interne du serveur API, pas celle du client web.
-base_url = "http://habitica-server:3000"
+base_url = "http://habitica-server-1:3000"
 database = "/data/hpm.sqlite3"
 initial_mode = "observe"
 technical_alias = "hpm-progression-kaell"
 technical_title = "⚙️ Progression Kaell"
-habit_priority = 1.0
+# La difficulté provient de chaque tâche source : 0.1, 1, 1.5 ou 2.
 habit_reset = "daily"
 worker_interval = 0.5
 request_timeout = 10
@@ -21,7 +21,7 @@ name = "Heal"
 user_id = "9d230257-cd6f-446a-a609-2be8753d9ed6"
 token_file = "/run/secrets/heal_api_key"
 enabled = true
-# task_id = "UUID d'une habitude positive existante choisie explicitement"
+# Les nouvelles habitudes sont identifiées par alias type/difficulté après audit.
 
 [[companions]]
 name = "Magus"

@@ -55,7 +55,7 @@ def create_app(settings: Settings | None = None, api: Habitica | None = None, *,
 
     app = FastAPI(
         title="Habitica Party Manager",
-        version="0.1.0",
+        version="0.2.0",
         lifespan=lifespan,
         docs_url=None,
         redoc_url=None,

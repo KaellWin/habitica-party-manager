@@ -117,10 +117,14 @@ Le [Cron serveur](https://github.com/awinterstein/habitica/blob/v5.50.6/website/
 ramène la valeur d’une habitude à signe unique vers zéro par division par deux.
 `frequency` règle ses compteurs ; ce n’est pas un réglage libre d’XP.
 
-HPM offre `habit_priority` (0.1, 1, 1.5, 2), titre et fréquence configurables
-à la création ; valeur par défaut 1, un seul score par événement. Aucun reset
-artificiel de valeur ni multiplicateur caché. Ces réglages ne modifient pas une
-habitude déjà présente.
+Depuis la version 0.2, HPM conserve `task.priority` et sélectionne une des douze
+habitudes positives par type/difficulté. Chaque destination a sa priorité native
+(0.1, 1, 1.5, 2) ; un seul score par événement. Titre de base et fréquence restent
+configurables à la création. `habit_priority` v0.1 reste accepté dans le TOML
+sans effet sur ce routage. Aucun reset artificiel ni multiplicateur caché ;
+les habitudes existantes ne sont pas modifiées. L'empreinte reste celle de v0.1
+pour reconnaître les livraisons anciennes, la priorité est conservée séparément
+comme donnée de routage et dans le snapshot.
 
 HPM **n’appelle pas `/cron`** : cet endpoint applique les dommages des quotidiennes
 manquées, qui exigent un choix distinct sur les tâches existantes. Sans exécution

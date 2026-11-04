@@ -6,7 +6,7 @@ database = "/data/hpm.sqlite3"
 initial_mode = "observe"
 technical_alias = "hpm-progression-kaell"
 technical_title = "⚙️ Progression Kaell"
-habit_priority = 1.0
+# La difficulté provient de chaque tâche source.
 habit_reset = "daily"
 worker_interval = 0.5
 request_timeout = 10
@@ -22,7 +22,7 @@ name = "Heal"
 user_id = "9d230257-cd6f-446a-a609-2be8753d9ed6"
 token_file = "/run/secrets/heal_api_key"
 enabled = true
-# task_id = "UUID d'une habitude positive existante choisie explicitement"
+# Douze habitudes sont préparées par alias type/difficulté.
 
 [[companions]]
 name = "Magus"

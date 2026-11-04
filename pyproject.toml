@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "habitica-party-manager"
-version = "0.1.0"
+version = "0.2.0"
 description = "Progression positive des compagnons Habitica, avec file SQLite durable"
 readme = "README.md"
 requires-python = ">=3.12"

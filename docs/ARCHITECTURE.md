@@ -15,6 +15,7 @@ le contrat API, les erreurs et les redémarrages.
 |---|---|
 | `config.py` | TOML non secret, validation, références aux fichiers de clés |
 | `habitica.py` | Authentification REST, contrôle des tâches, classification des erreurs |
+| `rewards.py`, `companions.py` | Catalogue type/difficulté et audit/préparation des douze destinations |
 | `rules.py` | Adaptation du webhook, empreinte, éligibilité positive |
 | `store.py` | Schéma SQLite, transactions, verrou de processus |
 | `service.py` | Ingestion atomique, fanout, audit/préparation, file et commandes de contrôle |
@@ -42,10 +43,12 @@ flowchart LR
 - `companions` : activation, habitude choisie, préparation et dernier audit.
 - `events` : empreinte, dates source/réception, mode, raison et snapshot minimal,
   compteur de réceptions. Conservation durable des empreintes sans expiration.
-- `operations` : destinataire et tâche figés, état, tentatives, échéance et erreur.
+- `reward_habits` : correspondances compagnon, compte et couple type/difficulté vers les tâches.
+- `operations` : destinataire, tâche, type et difficulté figés, état, tentatives, échéance et erreur.
   Unicité `(event_id, companion)`.
 - `audit_log` : changements de mode, activation, préparation et résolutions manuelles.
 
+La migration v1 → v2 est atomique, en observation et sans rejeu ; voir `MISE_A_JOUR_0_2.md`.
 Le schéma est versionné par `PRAGMA user_version`. Une version inconnue échoue
 explicitement. Les futures migrations devront être testées sur des sauvegardes.
 Aucune clé API ni secret de webhook/administration en base.
@@ -103,8 +106,9 @@ L’audit GET liste les quotidiennes à risque de pénalité et les autres habit
 pouvant avoir une automatisation externe. L’API seule ne permet pas d’identifier
 une automatisation Home Assistant existante : vérification humaine nécessaire.
 La préparation exige l’empreinte du rapport consulté ; une modification des tâches
-oblige à relire le rapport. L’habitude est choisie par UUID configuré ou alias
-unique par compte. Aucune correspondance automatique sur le seul titre.
+oblige à relire le rapport. Les douze habitudes sont choisies par alias unique
+par couple type/difficulté et compte. Aucune correspondance sur le seul titre.
+L’ancien UUID configuré reste accepté en référence à l’habitude v0.1 inutilisée.
 
 Le client contrôle avant chaque score : habitude, positive uniquement,
 propriétaire attendu, tâche personnelle hors défi/groupe. Une tâche devenue
@@ -132,7 +136,7 @@ via `SSL_CERT_FILE` sans désactiver la vérification.
 1. **Stabilisation** : captures réelles, surveillance du webhook et de la file,
    tests batch/concurrence Habitica, suivi du comportement Cron et des quêtes.
    Polling de diagnostic possible, sans rattrapage automatique.
-2. **Pondération** : extraire une politique `plan(event, companion)` retournant
+2. **Pondération future au-delà du routage type/difficulté 0.2** : extraire une politique `plan(event, companion)` retournant
    des actions typées. Conserver une provenance et un nombre maximal de scores.
    Pas de changement direct d’XP ; étudier l’effet de difficulté et de classe.
 3. **Synchronisation complète** : ajouter `task_links(master_task_id, companion,
@@ -148,5 +152,6 @@ via `SSL_CERT_FILE` sans désactiver la vérification.
    annulations, streaks, quêtes et compétences. Ne pas supposer qu’un streak
    historique ou un résultat de quête est modifiable fidèlement via l’API.
 
-Cette version fournit une habitude technique et un score positif par événement.
+La version 0.2 fournit douze habitudes techniques par compagnon, mais toujours
+un seul score positif par événement et compagnon, selon le type et la difficulté.
 Elle ne développe pas les modes avancés, pénalités, compétences ou inventaires.

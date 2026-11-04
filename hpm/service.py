@@ -3,18 +3,15 @@ import logging
 import random
 import threading
 import time
-from uuid import UUID
 
+from .companions import Conflict, HabitBank
 from .config import Settings
 from .habitica import APIError, Habitica
+from .rewards import POLICY, REWARDS
 from .rules import canonical, classify, digest
 from .store import Store
 
 log = logging.getLogger("hpm")
-
-
-class Conflict(Exception):
-    pass
 
 
 class Service:
@@ -38,10 +35,12 @@ class Service:
                         "user_id": account.user_id,
                         "task_id": account.task_id,
                         "alias": settings.technical_alias,
+                        "policy": POLICY,
                     }
                 )
                 old = db.execute("SELECT * FROM companions WHERE name=?", (account.name,)).fetchone()
                 if old and old["user_id"] != account.user_id:
+                    db.execute("DELETE FROM reward_habits WHERE companion=?", (account.name,))
                     db.execute("DELETE FROM companions WHERE name=?", (account.name,))
                     db.execute(
                         "UPDATE operations SET status='cancelled', error='account_changed' "
@@ -56,6 +55,7 @@ class Service:
                     )
                 elif Store.get_in(db, binding_key) != binding:
                     db.execute("UPDATE companions SET prepared=0,task_id=NULL WHERE name=?", (account.name,))
+                    db.execute("DELETE FROM reward_habits WHERE companion=?", (account.name,))
                 Store.set_in(db, binding_key, binding)
 
     def start(self, worker=True):
@@ -115,11 +115,28 @@ class Service:
                     if not self.enabled(row["name"], row):
                         continue
                     status = "simulated" if mode == "dry-run" else "queued"
+                    target = db.execute(
+                        "SELECT task_id FROM reward_habits WHERE companion=? AND user_id=? AND reward_key=?",
+                        (row["name"], row["user_id"], decision.reward_key),
+                    ).fetchone()
+                    reward = REWARDS[decision.reward_key]
                     db.execute(
                         """INSERT INTO operations(
-                        event_id,companion,user_id,task_id,status,next_at,created_at,updated_at
-                        ) VALUES(?,?,?,?,?,?,?,?)""",
-                        (decision.key, row["name"], row["user_id"], row["task_id"], status, now, now, now),
+                        event_id,companion,user_id,task_id,status,next_at,created_at,updated_at,
+                        reward_key,source_type,source_priority) VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+                        (
+                            decision.key,
+                            row["name"],
+                            row["user_id"],
+                            target["task_id"] if target else None,
+                            status,
+                            now,
+                            now,
+                            now,
+                            reward.key,
+                            reward.source_type,
+                            reward.priority,
+                        ),
                     )
             log.info(canonical({"event": "received", "id": decision.key, "mode": mode, "reason": reason}))
         return {"id": decision.key, "duplicate": False, "reason": reason}
@@ -130,7 +147,15 @@ class Service:
                 missing = [
                     r["name"]
                     for r in db.execute("SELECT * FROM companions")
-                    if self.enabled(r["name"], r) and not r["prepared"]
+                    if self.enabled(r["name"], r)
+                    and (
+                        not r["prepared"]
+                        or db.execute(
+                            "SELECT count(*) FROM reward_habits WHERE companion=? AND user_id=?",
+                            (r["name"], r["user_id"]),
+                        ).fetchone()[0]
+                        != len(REWARDS)
+                    )
                 ]
                 if missing:
                     raise Conflict("Auditer et préparer les compagnons : " + ", ".join(missing))
@@ -159,91 +184,14 @@ class Service:
             Store.audit_in(db, "companion_enabled", {"companion": name, "enabled": enabled})
 
     def audit(self, name):
-        account = self.companion(name)
-        user = self.api.request(account, "GET", "user")
-        if not isinstance(user, dict) or user.get("_id", user.get("id")) != account.user_id:
-            raise APIError("account_identity_mismatch")
-        tasks = self.api.tasks(account)
-        candidates = [
-            t
-            for t in tasks
-            if (
-                (t.get("id", t.get("_id")) == account.task_id)
-                if account.task_id
-                else t.get("alias") == self.cfg.technical_alias
-            )
-        ]
-        if len(candidates) > 1:
-            raise Conflict("Plusieurs habitudes techniques candidates ; sélectionner task_id")
-        selected = candidates[0] if candidates else None
-        if selected:
-            self.api.validate_habit(selected, account)
-        conflicts = [
-            {
-                "id": t.get("id", t.get("_id")),
-                "type": t.get("type"),
-                "text": t.get("text", ""),
-                "warning": "penalites_cron_possibles"
-                if t.get("type") == "daily"
-                else "automatisation_externe_ou_doublon_a_verifier",
-            }
-            for t in tasks
-            if t is not selected and t.get("type") in {"daily", "habit"}
-        ]
-        # Empreinte indépendante des scores : un audit reste valable si une tâche est simplement scorée.
-        audit_state = {
-            "user_id": account.user_id,
-            "conflicts": conflicts,
-            "selected": selected.get("id", selected.get("_id")) if selected else None,
-        }
-        report = {
-            "companion": name,
-            "connected": True,
-            **audit_state,
-            "audit_id": digest(audit_state),
-            "at": time.time(),
-        }
-        with self.db.connect() as db:
-            db.execute("UPDATE companions SET audit_json=? WHERE name=?", (canonical(report), name))
-        return report
+        with self.guard:
+            return HabitBank(self.cfg, self.api, self.db).audit(self.companion(name))
 
     def prepare(self, name, audit_id, create, acknowledge_conflicts):
         with self.guard:
-            if self.db.setting("mode") == "dry-run":
-                raise Conflict(
-                    "La simulation interdit toute création ; utiliser le mode observation pour préparer"
-                )
-            account = self.companion(name)
-            previous = self.db.rows("SELECT audit_json FROM companions WHERE name=?", (name,))[0]
-            if not previous["audit_json"] or json.loads(previous["audit_json"])["audit_id"] != audit_id:
-                raise Conflict("Lire le rapport d'audit avant de préparer")
-            report = self.audit(name)
-            if report["audit_id"] != audit_id:
-                raise Conflict("Les tâches ont changé ; consulter le nouvel audit")
-            if report["conflicts"] and not acknowledge_conflicts:
-                raise Conflict(
-                    "Vérifier les tâches et automatisations existantes puis acquitter les conflits"
-                )
-            if report["selected"]:
-                task_id = report["selected"]
-            elif create and not account.task_id:
-                # Si la réponse se perd : relecture par alias au prochain audit, jamais de création aveugle.
-                task = self.api.create_habit(account)
-                task_id = task.get("id", task.get("_id"))
-            else:
-                raise Conflict("Habitude absente ; autoriser sa création ou corriger task_id")
-            try:
-                task_id = str(UUID(task_id))
-            except (ValueError, TypeError):
-                raise APIError("invalid_task_id") from None
-            with self.db.connect() as db:
-                db.execute("UPDATE companions SET task_id=?,prepared=1 WHERE name=?", (task_id, name))
-                Store.audit_in(
-                    db,
-                    "companion_prepared",
-                    {"companion": name, "task_id": task_id, "conflicts_acknowledged": acknowledge_conflicts},
-                )
-            return {"companion": name, "task_id": task_id, "prepared": True}
+            return HabitBank(self.cfg, self.api, self.db).prepare(
+                self.companion(name), audit_id, create, acknowledge_conflicts
+            )
 
     def finish(self, op_id, status, error=None, delay=0):
         now = time.time()
@@ -269,12 +217,18 @@ class Service:
                     return False
                 op = dict(row)
                 recipient = db.execute("SELECT * FROM companions WHERE name=?", (op["companion"],)).fetchone()
+                target = db.execute(
+                    "SELECT task_id FROM reward_habits WHERE companion=? AND user_id=? AND reward_key=?",
+                    (op["companion"], op["user_id"], op["reward_key"]),
+                ).fetchone()
                 safe = (
                     recipient
                     and self.enabled(op["companion"], recipient)
                     and recipient["prepared"]
                     and recipient["user_id"] == op["user_id"]
-                    and recipient["task_id"] == op["task_id"]
+                    and target
+                    and target["task_id"] == op["task_id"]
+                    and op["reward_key"] in REWARDS
                 )
                 if not safe:
                     db.execute(
@@ -287,7 +241,7 @@ class Service:
             sending = False
             try:
                 task = self.api.task(account, op["task_id"])
-                self.api.validate_habit(task, account)
+                self.api.validate_reward(task, account, REWARDS[op["reward_key"]])
                 if (task.get("id") or task.get("_id")) != op["task_id"]:
                     raise APIError("technical_task_mismatch")
                 # Commit AVANT le POST : arrêt à cet endroit => résultat incertain après redémarrage.
@@ -316,6 +270,8 @@ class Service:
             row = db.execute("SELECT * FROM operations WHERE id=?", (op_id,)).fetchone()
             if not row or row["status"] not in {"uncertain", "failed"}:
                 raise Conflict("Seules les opérations incertaines ou échouées peuvent être résolues")
+            if action == "retry" and row["reward_key"] not in REWARDS:
+                raise Conflict("Ancienne opération : confirmer ou abandonner après vérification, sans rejeu")
             if action == "retry" and (not acknowledge_risk or Store.get_in(db, "mode") != "live"):
                 raise Conflict(
                     "La reprise exige le mode actif et l'acceptation explicite du risque de doublon"
@@ -339,8 +295,23 @@ class Service:
             row["enabled"] = self.enabled(row["name"], row)
             row["configured"] = row["name"] in self.accounts
             row["audit"] = json.loads(row.pop("audit_json") or "null")
+            row["habits"] = self.db.rows(
+                "SELECT reward_key,task_id FROM reward_habits WHERE companion=? ORDER BY reward_key",
+                (row["name"],),
+            )
         return {
             "mode": self.db.setting("mode"),
+            "reward_policy": POLICY,
+            "reward_catalog": [
+                {
+                    "key": r.key,
+                    "source_type": r.source_type,
+                    "priority": r.priority,
+                    "type_label": r.type_label,
+                    "difficulty_label": r.difficulty_label,
+                }
+                for r in REWARDS.values()
+            ],
             "master": self.cfg.master.name,
             "master_user_id": self.cfg.master.user_id,
             "base_url": self.cfg.base_url,

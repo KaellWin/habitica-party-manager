@@ -1,6 +1,34 @@
 # Vérifications effectuées — 4 novembre 2026
 
-## Résultats obtenus dans le cloud
+## Version 0.2 — difficulté, type et LAN
+
+- **83 tests pytest réussis**, couverture globale **87 %**, Ruff et syntaxe JS validés.
+- Les douze couples type/difficulté produisent chacun un score par compagnon,
+  sur une habitude positive de même priorité. Difficulté absente/invalide :
+  aucun score. Une modification de priorité ne transforme pas un ancien état
+  de score en nouvel événement.
+- Migration du schéma 0.1 réel conservé dans une fixture : historique et
+  empreintes préservés, observation, annulation des anciennes opérations en
+  attente, incertitudes conservées, aucun score ni modification de tâche.
+  Une interruption de migration annule atomiquement l'intégralité du changement.
+- Réponse de création perdue : reprise après nouvel audit par alias, sans
+  création en double. Redémarrages et erreurs du MVP restent couverts.
+- Démonstration HTTP entre deux conteneurs : **12 couples → 36 scores**,
+  sans supplément pour les doublons, le négatif ou la simulation.
+- Redémarrage Docker : mode et routage conservés, rejeu reconnu, total inchangé.
+- Chromium : authentification, trois banques de douze habitudes, colonnes
+  type/difficulté, détails des destinations, changement de mode et audit vérifiés.
+- Compose de production exécuté en observation avec un backend synthétique,
+  ancien TOML compatible, audit connecté. La configuration Compose rendue publie
+  par défaut `192.168.0.2:8088` et conserve l'authentification. Le test cloud
+  d'exécution utilise sa propre interface locale ; l'accès depuis un appareil
+  de votre LAN reste à vérifier après la mise à jour Portainer.
+
+Image 0.2 construite :
+`sha256:56fdf05e730ed1b84d17d5fbca92e4ef2bd5e3e97d189c2075959647b1ad9506`.
+Il s'agit d'un build local de validation, pas d'une image publiée en registre.
+
+## Résultats 0.1 conservés pour historique
 
 - **57 tests pytest réussis**, couverture globale **87 %**. Le total comprend
   les branches du simulateur et de la CLI ; ce pourcentage ne prouve pas la
@@ -33,9 +61,10 @@ applicatif et du serveur HTTP sont complétés par les essais Docker.
 
 ## À réaliser chez vous
 
-Installation effective dans Portainer, DNS et réseau Docker de votre backend,
-clés réelles, payloads manuels et Home Assistant, gains XP/or des personnages,
-état des tâches existantes, Cron/heure de début et effets sur les quêtes.
+La version 0.1 a été déclarée fonctionnelle sur votre serveur. Pour la 0.2,
+vérifier la mise à jour Portainer, l’accès LAN, les couples type/difficulté des
+payloads réels (manuels et Home Assistant), les nouvelles habitudes et les gains
+natifs. Le Cron/heure de début et les effets sur les quêtes restent hors de cette modification.
 Le cloud n’a pas contacté votre instance et n’a attribué aucune récompense réelle.
 Suivre `RECETTE.md` et conserver l’observation tant que ces vérifications
 ne sont pas terminées.

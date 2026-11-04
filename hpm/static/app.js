@@ -30,26 +30,40 @@ async function refresh() {
     const card = document.createElement("div"); card.className = "card";
     const title = document.createElement("strong"); title.textContent = c.name;
     const status = document.createElement("span");
-    status.textContent = `${c.enabled ? "Activé" : "Désactivé"} · ${c.prepared ? "Préparé" : "À préparer"}`;
+    status.textContent = `${c.enabled ? "Activé" : "Désactivé"} · ${c.prepared ? "Préparé" : "À préparer"} · ${c.habits.length}/12 habitudes`;
     card.append(title, status, button(c.enabled ? "Désactiver" : "Activer", async () => {
       await api(`companions/${c.name}/enabled`, {enabled: !c.enabled}); await refresh();
     }), button("Auditer les tâches", async () => {
       const report = await api(`companions/${c.name}/audit`, {});
       $("report").textContent = JSON.stringify(report, null, 2); await refresh();
     }));
-    if (c.audit) card.append(button("Préparer l’habitude technique", async () => {
-      if (!confirm("Avez-vous examiné le rapport et les automatisations existantes ? Une habitude positive sera créée si nécessaire. Aucune tâche existante ne sera modifiée.")) return;
+    if (c.audit) card.append(button("Préparer les 12 habitudes", async () => {
+      if (!confirm("Avez-vous examiné le rapport et les automatisations existantes ? Jusqu’à 12 habitudes positives seront créées pour distinguer les types et difficultés. L’ancienne habitude et les autres tâches resteront intactes.")) return;
       $("report").textContent = JSON.stringify(await api(`companions/${c.name}/prepare`, {
         audit_id: c.audit.audit_id, create: true, acknowledge_conflicts: true
       }), null, 2); await refresh();
     }));
-    const info = document.createElement("small"); info.textContent = c.user_id + (c.task_id ? " · " + c.task_id : "");
+    if (c.habits.length) {
+      const details = document.createElement("details");
+      const summary = document.createElement("summary"); summary.textContent = "Voir les habitudes de progression";
+      details.append(summary);
+      for (const habit of c.habits) {
+        const reward = state.reward_catalog.find(r => r.key === habit.reward_key);
+        const item = document.createElement("small");
+        item.textContent = `${reward.type_label} · ${reward.difficulty_label} · ${habit.task_id}`;
+        details.append(item);
+      }
+      card.append(details);
+    }
+    const info = document.createElement("small"); info.textContent = c.user_id;
     card.append(info); $("companions").append(card);
   }
   $("operations").replaceChildren();
   for (const op of state.last_operations) {
+    const reward = state.reward_catalog.find(r => r.key === op.reward_key);
     const tr = document.createElement("tr");
-    for (const value of [op.id, op.companion, op.status, op.attempts, op.error || "—"]) {
+    for (const value of [op.id, op.companion, reward?.type_label || "Ancienne version",
+      reward?.difficulty_label || "—", op.status, op.attempts, op.error || "—"]) {
       const td = document.createElement("td"); td.textContent = value; tr.append(td);
     }
     const actions = document.createElement("td");

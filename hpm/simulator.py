@@ -24,9 +24,10 @@ IDS = {
 SOURCE_TASK_ID = "00000000-0000-4000-8000-000000000001"
 
 
-def scored_payload(kind="habit", *, sequence=1, timestamp=None):
+def scored_payload(kind="habit", *, sequence=1, timestamp=None, priority=1):
     stamp = timestamp or time.time()
     task = {
+        "priority": priority,
         "id": SOURCE_TASK_ID,
         "_id": SOURCE_TASK_ID,
         "type": kind,
@@ -150,7 +151,7 @@ async def api_route(path: str, request: Request):
 
 
 @app.post("/simulate/{kind}")
-async def simulate(kind: str):
+async def simulate(kind: str, priority: float = 1):
     if kind not in {"habit", "daily", "todo", "duplicate", "negative"}:
         return JSONResponse({"detail": "Type inconnu"}, status_code=400)
     if kind == "duplicate":
@@ -158,8 +159,12 @@ async def simulate(kind: str):
         if payload is None:
             return JSONResponse({"detail": "Émettre une validation avant le doublon"}, status_code=409)
     else:
+        if priority not in (0.1, 1, 1.5, 2):
+            return JSONResponse({"detail": "Difficulté inconnue"}, status_code=400)
         backend.sequence += 1
-        payload = scored_payload("habit" if kind == "negative" else kind, sequence=backend.sequence)
+        payload = scored_payload(
+            "habit" if kind == "negative" else kind, sequence=backend.sequence, priority=priority
+        )
         if kind == "negative":
             payload["direction"], payload["delta"] = "down", -1
         backend.last_payload = payload
@@ -173,4 +178,16 @@ async def simulate(kind: str):
 
 @app.get("/simulation-status")
 def simulation_status():
-    return {"scores": backend.scores, "total": len(backend.scores)}
+    return {
+        "scores": backend.scores,
+        "total": len(backend.scores),
+        "scored_habits": [
+            {
+                "user_id": user,
+                "task_id": task_id,
+                "alias": backend.tasks[user][task_id]["alias"],
+                "priority": backend.tasks[user][task_id]["priority"],
+            }
+            for user, task_id in backend.scores
+        ],
+    }

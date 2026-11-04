@@ -47,7 +47,7 @@ def test_existing_tasks_audited_and_never_modified(client, admin, fake):
     again = client.post("/api/companions/Heal/audit", headers=admin).json()
     body["audit_id"] = again["audit_id"]
     assert client.post("/api/companions/Heal/prepare", headers=admin, json=body).status_code == 200
-    assert len(fake.tasks[IDS["Heal"]]) == 2
+    assert len(fake.tasks[IDS["Heal"]]) == 13
 
 
 def test_changed_tasks_require_new_audit(client, admin, fake):

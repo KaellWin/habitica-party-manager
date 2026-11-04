@@ -6,6 +6,7 @@ from urllib.parse import quote
 import httpx
 
 from .config import Account, Settings
+from .rewards import Reward
 
 
 class APIError(Exception):
@@ -110,7 +111,17 @@ class Habitica:
         ):
             raise APIError("unsafe_technical_habit")
 
-    def create_habit(self, account):
+    def validate_reward(self, task, account, reward: Reward):
+        self.validate_habit(task, account)
+        priority = task.get("priority")
+        if (
+            isinstance(priority, bool)
+            or priority != reward.priority
+            or task.get("alias") != reward.alias(self.settings)
+        ):
+            raise APIError("technical_habit_difficulty_mismatch")
+
+    def create_habit(self, account, reward: Reward):
         cfg = self.settings
         task = self.request(
             account,
@@ -118,16 +129,16 @@ class Habitica:
             "tasks/user",
             {
                 "type": "habit",
-                "text": cfg.technical_title,
-                "alias": cfg.technical_alias,
+                "text": reward.title(cfg),
+                "alias": reward.alias(cfg),
                 "notes": "Gérée par Habitica Party Manager. Une validation positive par action de Kaell.",
                 "up": True,
                 "down": False,
-                "priority": cfg.habit_priority,
+                "priority": reward.priority,
                 "frequency": cfg.habit_reset,
             },
         )
-        self.validate_habit(task, account)
+        self.validate_reward(task, account, reward)
         return task
 
     def score_up(self, account, task_id):
