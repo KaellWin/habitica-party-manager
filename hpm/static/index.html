@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Habitica Party Manager</title><link rel="stylesheet" href="/static/app.css"></head>
+<body><main>
+<p class="eyebrow">KAELL · HEAL · MAGUS · WAR</p><h1>Habitica Party Manager</h1>
+<p>Chaque action positive fait progresser votre équipe.</p>
+<p>Une validation par compagnon, adaptée au type de tâche et à sa difficulté.</p>
+<form id="login"><label>Jeton d’administration <input id="token" type="password" required autocomplete="off"></label>
+<button>Se connecter</button></form>
+<p id="message" role="status"></p>
+<section id="panel" hidden>
+<div class="toolbar"><h2 id="mode-title">État du service</h2><button id="refresh">Actualiser</button>
+<button id="connection">Vérifier la connexion</button></div>
+<div class="toolbar"><label>Mode <select id="mode"><option value="observe">Observation</option>
+<option value="dry-run">Simulation</option><option value="live">Actif</option><option value="off">Arrêté</option></select></label>
+<button id="apply-mode">Appliquer</button><button id="stop" class="danger">Arrêter la distribution</button></div>
+<p>Changer de mode annule les opérations en attente. Les événements observés ou simulés ne sont jamais rejoués.
+Une requête déjà envoyée peut encore aboutir.</p>
+<p id="counts"></p><h2>Compagnons</h2><div id="companions"></div>
+<h2>Dernières opérations</h2><div class="scroll"><table><thead><tr><th>ID</th><th>Compagnon</th>
+<th>Type</th><th>Difficulté</th>
+<th>État</th><th>Tentatives</th><th>Erreur</th><th>Résolution</th></tr></thead><tbody id="operations"></tbody></table></div>
+<h2>Derniers événements</h2><pre id="events"></pre>
+<h2>Rapport de connexion ou d’audit</h2><pre id="report">Exécutez un audit pour examiner les tâches existantes.</pre>
+</section></main><script src="/static/app.js" defer></script></body></html>

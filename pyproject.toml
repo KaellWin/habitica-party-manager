@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "habitica-party-manager"
+version = "0.2.0"
+description = "Progression positive des compagnons Habitica, avec file SQLite durable"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+dependencies = ["fastapi==0.121.1", "httpx==0.28.1", "uvicorn==0.38.0"]
+
+[project.optional-dependencies]
+test = ["pytest==8.4.2", "pytest-cov==7.0.0", "ruff==0.14.4"]
+
+[tool.setuptools.package-data]
+hpm = ["static/*", "logging.json"]
+
+[tool.setuptools.packages.find]
+include = ["hpm*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B"]
