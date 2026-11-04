@@ -1,0 +1,16 @@
+.git
+.env
+.venv
+__pycache__
+.pytest_cache
+.ruff_cache
+.coverage
+htmlcov
+*.egg-info
+build
+dist
+output
+work
+secrets
+config/config.toml
+*.sqlite3*

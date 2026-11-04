@@ -1,0 +1,36 @@
+# Copier dans /srv/habitica-party-manager/config/config.toml.
+# Renseigner l'origine interne du serveur API, pas celle du client web.
+base_url = "http://habitica-server:3000"
+database = "/data/hpm.sqlite3"
+initial_mode = "observe"
+technical_alias = "hpm-progression-kaell"
+technical_title = "⚙️ Progression Kaell"
+habit_priority = 1.0
+habit_reset = "daily"
+worker_interval = 0.5
+request_timeout = 10
+max_attempts = 6
+
+[master]
+name = "Kaell"
+user_id = "1afbfa65-f077-4e0a-8287-af7e82e27672"
+token_file = "/run/secrets/kaell_api_key"
+
+[[companions]]
+name = "Heal"
+user_id = "9d230257-cd6f-446a-a609-2be8753d9ed6"
+token_file = "/run/secrets/heal_api_key"
+enabled = true
+# task_id = "UUID d'une habitude positive existante choisie explicitement"
+
+[[companions]]
+name = "Magus"
+user_id = "292ee24a-009c-42d9-8c82-ddded710246c"
+token_file = "/run/secrets/magus_api_key"
+enabled = true
+
+[[companions]]
+name = "War"
+user_id = "aee3d540-e2aa-428d-a437-f309093213af"
+token_file = "/run/secrets/war_api_key"
+enabled = true

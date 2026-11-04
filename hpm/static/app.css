@@ -1,0 +1,11 @@
+:root{font:16px/1.55 system-ui,sans-serif;color:#e8eaf0;background:#10141e;color-scheme:dark}
+body{margin:0}main{max-width:1100px;margin:auto;padding:36px 24px}h1{font-size:2.3rem;margin:0}
+h2{font-size:1.2rem;margin:28px 0 12px}.eyebrow{color:#b2a0ff;font-size:.8rem;letter-spacing:.14em}
+input,select,button{font:inherit;border:1px solid #536078;border-radius:6px;padding:8px 12px;background:#202a3c;color:inherit}
+button{cursor:pointer}button:hover{background:#384764}button.danger{background:#672e45}
+label{display:inline-flex;gap:12px;align-items:center}form,.toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.card{background:#1b2232;border:1px solid #39415a;border-radius:10px;padding:16px;margin:12px 0}
+.card strong{margin-right:16px}.card button{margin:4px}.scroll{overflow:auto}table{border-collapse:collapse;width:100%}
+td,th{text-align:left;padding:8px;border-bottom:1px solid #39415a}pre{white-space:pre-wrap;overflow-wrap:anywhere;
+background:#171d2a;padding:16px;border-radius:8px;max-height:420px;overflow:auto;font-size:.8rem}
+#message{color:#ffda94}p{color:#c5cbd8}small{display:block;margin-top:8px}

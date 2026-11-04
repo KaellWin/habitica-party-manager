@@ -1,0 +1,47 @@
+services:
+  party-manager:
+    image: ${HPM_IMAGE:-habitica-party-manager:0.1.0}
+    restart: unless-stopped
+    init: true
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 64
+    mem_limit: 256m
+    cpus: 0.50
+    stop_grace_period: 45s
+    environment:
+      HPM_CONFIG: /config/config.toml
+      HPM_ADMIN_TOKEN_FILE: /run/secrets/admin_token
+      HPM_WEBHOOK_TOKEN_FILE: /run/secrets/webhook_token
+      TZ: Europe/Paris
+      NO_PROXY: ${HPM_NO_PROXY:-habitica-server,hpm.internal,localhost,127.0.0.1}
+      no_proxy: ${HPM_NO_PROXY:-habitica-server,hpm.internal,localhost,127.0.0.1}
+    ports:
+      - "${HPM_BIND_IP:-127.0.0.1}:${HPM_PORT:-8088}:8080"
+    volumes:
+      - ${HPM_ROOT:-/srv/habitica-party-manager}/data:/data
+      - ${HPM_ROOT:-/srv/habitica-party-manager}/config:/config:ro
+      - ${HPM_ROOT:-/srv/habitica-party-manager}/secrets:/run/secrets:ro
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    networks:
+      habitica:
+        aliases: [habitica-party-manager, hpm.internal]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: "3"
+
+networks:
+  habitica:
+    external: true
+    name: ${HABITICA_NETWORK:?Renseigner le réseau Docker Habitica existant}

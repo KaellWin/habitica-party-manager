@@ -1,0 +1,33 @@
+# Environnement isolé : aucune connexion à votre véritable instance Habitica.
+services:
+  party-manager:
+    image: habitica-party-manager:0.1.0
+    build: .
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      HPM_CONFIG: /config/config.toml
+      NO_PROXY: habitica-mock,party-manager,localhost,127.0.0.1
+      no_proxy: habitica-mock,party-manager,localhost,127.0.0.1
+    ports: ["127.0.0.1:8088:8080"]
+    volumes:
+      - demo-data:/data
+      - ./demo/config.toml:/config/config.toml:ro
+      - ./demo/secrets:/run/secrets:ro
+    tmpfs: [/tmp]
+  habitica-mock:
+    image: habitica-party-manager:0.1.0
+    command: [uvicorn, hpm.simulator:app, --host, 0.0.0.0, --port, "3000", --no-access-log]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      HPM_DEMO_WEBHOOK_URL: http://party-manager:8080/hooks/habitica/demo-webhook-0000000000000000000000000000
+      NO_PROXY: habitica-mock,party-manager,localhost,127.0.0.1
+      no_proxy: habitica-mock,party-manager,localhost,127.0.0.1
+    ports: ["127.0.0.1:8099:3000"]
+    tmpfs: [/tmp]
+volumes:
+  demo-data:
